@@ -923,22 +923,19 @@ export default function Care911App() {
 
         {authMode==="register" && (
           <>
-            <label style={{ ...S.label, color:"rgba(255,255,255,0.5)" }}>{t.name}</label>
-            <input style={{ ...S.input, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff" }}
-              placeholder="John Doe" type="text" autoComplete="off" value={authForm.name}
-              onFocus={e=>e.target.select()} onClick={e=>e.stopPropagation()}
+            <label htmlFor="auth-name" style={{ ...S.label, color:"rgba(255,255,255,0.5)" }}>{t.name}</label>
+            <input id="auth-name" name="name" style={{ ...S.input, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff" }}
+              placeholder="John Doe" type="text" autoComplete="name" value={authForm.name}
               onChange={e=>setAuthForm(p=>({...p,name:e.target.value}))}/>
           </>
         )}
-        <label style={{ ...S.label, color:"rgba(255,255,255,0.5)" }}>{t.email}</label>
-        <input style={{ ...S.input, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff" }}
-          placeholder="you@email.com" type="text" autoComplete="off" value={authForm.email}
-          onFocus={e=>e.target.select()} onClick={e=>e.stopPropagation()}
+        <label htmlFor="auth-email" style={{ ...S.label, color:"rgba(255,255,255,0.5)" }}>{t.email}</label>
+        <input id="auth-email" name="email" style={{ ...S.input, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff" }}
+          placeholder="you@email.com" type="email" autoComplete="email" value={authForm.email}
           onChange={e=>setAuthForm(p=>({...p,email:e.target.value}))}/>
-        <label style={{ ...S.label, color:"rgba(255,255,255,0.5)" }}>{t.password}</label>
-        <input style={{ ...S.input, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff" }}
-          placeholder="••••••••" type="password" autoComplete="off" value={authForm.password}
-          onFocus={e=>e.target.select()} onClick={e=>e.stopPropagation()}
+        <label htmlFor="auth-password" style={{ ...S.label, color:"rgba(255,255,255,0.5)" }}>{t.password}</label>
+        <input id="auth-password" name="password" style={{ ...S.input, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff" }}
+          placeholder="••••••••" type="password" autoComplete="current-password" value={authForm.password}
           onChange={e=>setAuthForm(p=>({...p,password:e.target.value}))}/>
 
         {authError && <div style={{ fontSize:12, color:"#ff8080", marginBottom:10, textAlign:"center" }}>{authError}</div>}
