@@ -863,21 +863,21 @@ export default function Care911App() {
   const { listening, supported: voiceSupported, start: startVoice, stop: stopVoice } = useVoice(LANGS[voiceLang].code, handleVoiceCommand);
 
   // ── Auth
-  const doLogin = () => {
+  const doLogin = useCallback(() => {
     if (!authForm.email || !authForm.password) { setAuthError("Please fill in all fields"); return; }
     setUser({ name: authForm.name || authForm.email.split("@")[0], email: authForm.email });
     setScreen("home");
     setAuthError("");
     showToast(`Welcome back! 👋`);
-  };
-  const doRegister = () => {
+  }, [authForm]);
+  const doRegister = useCallback(() => {
     if (!authForm.name || !authForm.email || !authForm.password) { setAuthError("Please fill in all fields"); return; }
     setUser({ name: authForm.name, email: authForm.email });
     setScreen("home");
     setAuthError("");
     showToast(`Account created! Welcome to Care911 👋`);
-  };
-  const doLogout = () => { setUser(null); setScreen("login"); };
+  }, [authForm]);
+  const doLogout = useCallback(() => { setUser(null); setScreen("login"); }, []);
 
   // ── PDF
   const generatePDF = () => {
@@ -903,7 +903,7 @@ export default function Care911App() {
 
   // ── RENDER SCREENS ─────────────────────────────────────────────────────────
 
-  const Login = () => (
+  const Login = useCallback(() => (
     <div style={{ minHeight:"100vh", background:C.headerBg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
       <div style={{ width:60, height:60, background:"linear-gradient(135deg,#ff3b3b,#ff6b35)", borderRadius:18, display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, marginBottom:14, boxShadow:"0 0 24px rgba(255,59,59,0.5)" }}>🚨</div>
       <div style={{ fontSize:26, fontWeight:800, color:"#fff", marginBottom:4 }}>
@@ -958,7 +958,7 @@ export default function Care911App() {
         ))}
       </div>
     </div>
-  );
+  ), [authMode, authForm, authError, t, S, C, langKey, doLogin, doRegister]);
 
   const Home = () => (
     <div>
