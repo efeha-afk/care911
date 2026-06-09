@@ -16,14 +16,10 @@ const S = {
   label: { display: 'block', marginBottom: '0.5rem', color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem' },
   title: { fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' },
   subtitle: { color: 'rgba(255,255,255,0.6)', marginBottom: '1.5rem' },
-  badge: { display: 'inline-block', padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' },
 };
 
-// LoginScreen is defined OUTSIDE App so it never re-mounts on state changes
 const LoginScreen = React.memo(function LoginScreen({ onLogin }) {
-  const emailRef = useRef('');
-  const passRef = useRef('');
   const [emailVal, setEmailVal] = useState('');
   const [passVal, setPassVal] = useState('');
   const [isSignup, setIsSignup] = useState(false);
@@ -59,31 +55,17 @@ const LoginScreen = React.memo(function LoginScreen({ onLogin }) {
         {error && <div style={{ background: 'rgba(255,68,68,0.2)', border: '1px solid #ff4444', borderRadius: '8px', padding: '0.75rem', marginBottom: '1rem', color: '#ff8888', fontSize: '0.9rem' }}>{error}</div>}
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="login-email" style={S.label}>Email</label>
-          <input
-            id="login-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@email.com"
-            value={emailVal}
+          <input id="login-email" name="email" type="email" autoComplete="email" placeholder="you@email.com" value={emailVal}
             onChange={e => setEmailVal(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && document.getElementById('login-pass').focus()}
-            style={{ ...S.input, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff' }}
-          />
+            style={{ ...S.input, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff' }} />
         </div>
         <div style={{ marginBottom: '1.5rem' }}>
           <label htmlFor="login-pass" style={S.label}>Password</label>
-          <input
-            id="login-pass"
-            name="password"
-            type="password"
-            autoComplete={isSignup ? 'new-password' : 'current-password'}
-            placeholder="••••••••"
-            value={passVal}
+          <input id="login-pass" name="password" type="password" autoComplete={isSignup ? 'new-password' : 'current-password'} placeholder="••••••••" value={passVal}
             onChange={e => setPassVal(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-            style={{ ...S.input, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff' }}
-          />
+            style={{ ...S.input, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff' }} />
         </div>
         <button onClick={handleSubmit} style={{ ...S.btn, ...S.btnPrimary, width: '100%', marginBottom: '1rem' }}>
           {isSignup ? 'Create Account' : 'Sign In'}
@@ -95,6 +77,17 @@ const LoginScreen = React.memo(function LoginScreen({ onLogin }) {
     </div>
   );
 });
+
+async function callAPI(messages, systemPrompt) {
+  const res = await fetch('/api/triage', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, systemPrompt })
+  });
+  if (!res.ok) throw new Error('API request failed');
+  const data = await res.json();
+  return data.content?.[0]?.text || 'No response';
+}
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -112,36 +105,24 @@ function App() {
   });
 
   const handleLogin = useCallback((userData) => setUser(userData), []);
-
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('care911_session');
-    setUser(null);
-  }, []);
+  const handleLogout = useCallback(() => { localStorage.removeItem('care911_session'); setUser(null); }, []);
 
   const runTriage = useCallback(async () => {
     if (!triageInput.trim()) return;
     setTriageLoading(true);
     setTriageResult(null);
     try {
-      const apiKey = process.env.REACT_APP_ANTHROPIC_KEY;
-      if (!apiKey) { setTriageResult({ error: 'API key not configured. Add REACT_APP_ANTHROPIC_KEY in Vercel settings.' }); return; }
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022', max_tokens: 800,
-          messages: [{ role: 'user', content: `You are an emergency medical triage assistant. Analyze these symptoms and provide: 1) Urgency level (CRITICAL/HIGH/MEDIUM/LOW), 2) Possible conditions, 3) Immediate steps, 4) Whether to call 911. Symptoms: ${triageInput}` }]
-        })
-      });
-      const data = await res.json();
-      const text = data.content?.[0]?.text || 'No response';
+      const text = await callAPI(
+        [{ role: 'user', content: triageInput }],
+        'You are an emergency medical triage assistant. Analyze the symptoms and provide: 1) Urgency level (CRITICAL/HIGH/MEDIUM/LOW), 2) Possible conditions, 3) Immediate steps, 4) Whether to call 911.'
+      );
       const entry = { type: 'triage', input: triageInput, result: text, date: new Date().toISOString() };
       const newHistory = [entry, ...history.slice(0, 19)];
       setHistory(newHistory);
       localStorage.setItem('care911_history', JSON.stringify(newHistory));
       setTriageResult({ text });
     } catch (err) {
-      setTriageResult({ error: 'Failed to connect. Check your API key and internet connection.' });
+      setTriageResult({ error: 'Failed to connect. Check your API key in Vercel settings.' });
     } finally {
       setTriageLoading(false);
     }
@@ -152,31 +133,34 @@ function App() {
     setInsuranceLoading(true);
     setInsuranceResult(null);
     try {
-      const apiKey = process.env.REACT_APP_ANTHROPIC_KEY;
-      if (!apiKey) { setInsuranceResult({ error: 'API key not configured.' }); return; }
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64 = reader.result.split(',')[1];
-        const mediaType = imageFile.type || 'image/jpeg';
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({
-            model: 'claude-3-5-sonnet-20241022', max_tokens: 600,
-            messages: [{ role: 'user', content: [
-              { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-              { type: 'text', text: 'Extract all insurance information from this card: member name, member ID, group number, insurance company, plan name, phone numbers, copay info, deductible. Format clearly.' }
-            ]}]
-          })
-        });
-        const data = await res.json();
-        const text = data.content?.[0]?.text || 'Could not extract info';
-        setInsuranceResult({ text });
-        setInsuranceLoading(false);
+        try {
+          const base64 = reader.result.split(',')[1];
+          const mediaType = imageFile.type || 'image/jpeg';
+          const res = await fetch('/api/triage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              systemPrompt: 'You extract insurance card information accurately.',
+              messages: [{ role: 'user', content: [
+                { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+                { type: 'text', text: 'Extract all insurance information from this card: member name, member ID, group number, insurance company, plan name, phone numbers, copay info, deductible. Format clearly.' }
+              ]}]
+            })
+          });
+          const data = await res.json();
+          const text = data.content?.[0]?.text || 'Could not extract info';
+          setInsuranceResult({ text });
+        } catch {
+          setInsuranceResult({ error: 'Failed to scan card.' });
+        } finally {
+          setInsuranceLoading(false);
+        }
       };
       reader.readAsDataURL(imageFile);
-    } catch (err) {
-      setInsuranceResult({ error: 'Failed to scan card.' });
+    } catch {
+      setInsuranceResult({ error: 'Failed to read image.' });
       setInsuranceLoading(false);
     }
   }, [imageFile]);
@@ -196,23 +180,18 @@ function App() {
         </nav>
         <button onClick={handleLogout} style={{ ...S.navBtn, color: 'rgba(255,100,100,0.8)' }}>Logout</button>
       </header>
-
       <main style={S.main}>
         {tab === 'triage' && (
           <div>
             <h2 style={S.title}>AI Symptom Triage</h2>
             <p style={S.subtitle}>Describe your symptoms for an emergency assessment</p>
-            <div style={{ ...S.card }}>
+            <div style={S.card}>
               <label style={S.label}>Describe symptoms</label>
-              <textarea
-                id="triage-input"
-                value={triageInput}
-                onChange={e => setTriageInput(e.target.value)}
+              <textarea id="triage-input" value={triageInput} onChange={e => setTriageInput(e.target.value)}
                 placeholder="e.g. Chest pain, shortness of breath, left arm numbness for 10 minutes..."
-                rows={4}
-                style={{ ...S.input, resize: 'vertical', background: 'rgba(255,255,255,0.08)' }}
-              />
-              <button onClick={runTriage} disabled={triageLoading || !triageInput.trim()} style={{ ...S.btn, ...S.btnPrimary, marginTop: '1rem', opacity: (triageLoading || !triageInput.trim()) ? 0.5 : 1 }}>
+                rows={4} style={{ ...S.input, resize: 'vertical', background: 'rgba(255,255,255,0.08)' }} />
+              <button onClick={runTriage} disabled={triageLoading || !triageInput.trim()}
+                style={{ ...S.btn, ...S.btnPrimary, marginTop: '1rem', opacity: (triageLoading || !triageInput.trim()) ? 0.5 : 1 }}>
                 {triageLoading ? 'Analyzing...' : 'Analyze Symptoms'}
               </button>
             </div>
@@ -220,28 +199,22 @@ function App() {
               <div style={{ ...S.card, borderColor: triageResult.error ? '#ff4444' : 'rgba(255,255,255,0.2)' }}>
                 {triageResult.error
                   ? <p style={{ color: '#ff8888' }}>{triageResult.error}</p>
-                  : <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit', lineHeight: 1.6 }}>{triageResult.text}</pre>
-                }
+                  : <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit', lineHeight: 1.6 }}>{triageResult.text}</pre>}
               </div>
             )}
           </div>
         )}
-
         {tab === 'insurance' && (
           <div>
             <h2 style={S.title}>Insurance Card Scanner</h2>
             <p style={S.subtitle}>Upload a photo of your insurance card to extract key info</p>
             <div style={S.card}>
               <label htmlFor="insurance-file" style={S.label}>Upload insurance card image</label>
-              <input
-                id="insurance-file"
-                type="file"
-                accept="image/*"
-                onChange={e => setImageFile(e.target.files[0])}
-                style={{ ...S.input, padding: '0.5rem', background: 'rgba(255,255,255,0.05)' }}
-              />
+              <input id="insurance-file" type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])}
+                style={{ ...S.input, padding: '0.5rem', background: 'rgba(255,255,255,0.05)' }} />
               {imageFile && <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', marginTop: '0.5rem' }}>Selected: {imageFile.name}</p>}
-              <button onClick={runInsuranceScan} disabled={insuranceLoading || !imageFile} style={{ ...S.btn, ...S.btnPrimary, marginTop: '1rem', opacity: (insuranceLoading || !imageFile) ? 0.5 : 1 }}>
+              <button onClick={runInsuranceScan} disabled={insuranceLoading || !imageFile}
+                style={{ ...S.btn, ...S.btnPrimary, marginTop: '1rem', opacity: (insuranceLoading || !imageFile) ? 0.5 : 1 }}>
                 {insuranceLoading ? 'Scanning...' : 'Scan Card'}
               </button>
             </div>
@@ -249,13 +222,11 @@ function App() {
               <div style={S.card}>
                 {insuranceResult.error
                   ? <p style={{ color: '#ff8888' }}>{insuranceResult.error}</p>
-                  : <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit', lineHeight: 1.6 }}>{insuranceResult.text}</pre>
-                }
+                  : <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit', lineHeight: 1.6 }}>{insuranceResult.text}</pre>}
               </div>
             )}
           </div>
         )}
-
         {tab === 'history' && (
           <div>
             <h2 style={S.title}>Assessment History</h2>
